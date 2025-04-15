@@ -1,6 +1,5 @@
 import { LeetCodeProblem, RecentSubmission } from '../types';
 import { parse } from 'csv-parse/sync';
-import { LEETCODE_CONFIG } from '../config';
 
 // Function to get CSRF token from cookies - keeping for potential future use
 // function getCSRFToken(): string {
