@@ -2,14 +2,12 @@ import { LeetCodeProblem, RecentSubmission } from '../types';
 import { parse } from 'csv-parse/sync';
 import { LEETCODE_CONFIG } from '../config';
 
-const LEETCODE_API_ENDPOINT = 'https://leetcode.com/graphql';
-
-// Function to get CSRF token from cookies
-function getCSRFToken(): string {
-  const cookies = document.cookie.split(';');
-  const csrfCookie = cookies.find(cookie => cookie.trim().startsWith('csrftoken='));
-  return csrfCookie ? csrfCookie.split('=')[1] : '';
-}
+// Function to get CSRF token from cookies - keeping for potential future use
+// function getCSRFToken(): string {
+//   const cookies = document.cookie.split(';');
+//   const csrfCookie = cookies.find(cookie => cookie.trim().startsWith('csrftoken='));
+//   return csrfCookie ? csrfCookie.split('=')[1] : '';
+// }
 
 export async function fetchProblems(): Promise<LeetCodeProblem[]> {
   try {
@@ -21,7 +19,7 @@ export async function fetchProblems(): Promise<LeetCodeProblem[]> {
       skip_empty_lines: true,
     });
 
-    return records.map((record: any) => ({
+    return records.map((record: Record<string, string>) => ({
       name: record.Name,
       category: record.Category,
       difficulty: record.Difficulty,
@@ -35,7 +33,7 @@ export async function fetchProblems(): Promise<LeetCodeProblem[]> {
   }
 }
 
-export async function fetchRecentSubmissions(username: string = LEETCODE_CONFIG.username, limit: number = 25): Promise<RecentSubmission[]> {
+export async function fetchRecentSubmissions(): Promise<RecentSubmission[]> {
   try {
     const response = await fetch('/api/submissions');
     
@@ -57,10 +55,10 @@ export async function fetchRecentSubmissions(username: string = LEETCODE_CONFIG.
     const clearedTime = lastCleared ? new Date(lastCleared).getTime() : 0;
 
     const submissions = data.data.recentAcSubmissionList
-      .map((sub: any) => ({
+      .map((sub: Record<string, string | number>) => ({
         title: sub.title,
         link: `https://leetcode.com/problems/${sub.titleSlug}/`,
-        timestamp: new Date(parseInt(sub.timestamp) * 1000),
+        timestamp: new Date(parseInt(String(sub.timestamp)) * 1000),
       }))
       .filter((sub: RecentSubmission) => sub.timestamp.getTime() > clearedTime);
 
