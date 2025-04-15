@@ -1,103 +1,211 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { LeetCodeProblem, RecentSubmission } from './types';
+import ProblemList from './components/ProblemList';
+import { fetchRecentSubmissions, fetchProblems, storeSubmissions, loadStoredSubmissions, clearStoredSubmissions } from './utils/api';
+
+const LEETCODE_USERNAME = 'gaurxvreddy'; // Your LeetCode username
+const REFRESH_INTERVAL = 30000; // Refresh every 30 seconds
+
+const tabs = ['All', 'Easy', 'Medium', 'Hard'];
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [problems, setProblems] = useState<LeetCodeProblem[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('All');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Load problems and initial submissions
+  useEffect(() => {
+    async function loadInitialData() {
+      setIsLoading(true);
+      try {
+        const [problemsData, storedSubmissions] = await Promise.all([
+          fetchProblems(),
+          loadStoredSubmissions(),
+        ]);
+        setProblems(problemsData);
+        setRecentSubmissions(storedSubmissions);
+        console.log('Initial data loaded:', { problems: problemsData.length, submissions: storedSubmissions.length });
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        setError('Failed to load data');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadInitialData();
+  }, []);
+
+  // Set up periodic submission updates
+  useEffect(() => {
+    async function updateSubmissions() {
+      try {
+        setIsLoading(true);
+        console.log('Fetching new submissions...');
+        const submissions = await fetchRecentSubmissions(LEETCODE_USERNAME);
+        console.log('New submissions fetched:', submissions.length);
+        setRecentSubmissions(submissions);
+        storeSubmissions(submissions);
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error('Error updating submissions:', error);
+        setError('Failed to update data');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // Update immediately and then set up interval
+    console.log('Setting up auto-refresh interval...');
+    updateSubmissions();
+    const interval = setInterval(updateSubmissions, REFRESH_INTERVAL);
+
+    return () => {
+      console.log('Cleaning up auto-refresh interval...');
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Update problem stats when new submissions come in
+  useEffect(() => {
+    if (recentSubmissions.length === 0) return;
+
+    const updatedProblems = problems.map(problem => {
+      const submissions = recentSubmissions.filter(
+        sub => sub.link === problem.link
+      );
+      return {
+        ...problem,
+        solvedCount: submissions.length,
+        lastSolved: submissions.length > 0 ? submissions[0].timestamp : null,
+      };
+    });
+
+    setProblems(updatedProblems);
+  }, [recentSubmissions, problems]);
+  
+  // Filter problems based on active tab
+  const filteredProblems = problems.filter(problem => {
+    if (activeTab === 'All') return true;
+    return problem.difficulty === activeTab;
+  });
+
+  // Calculate stats for the different difficulty levels
+  const stats = {
+    easy: problems.filter(p => p.difficulty === 'Easy' && p.solvedCount > 0).length,
+    medium: problems.filter(p => p.difficulty === 'Medium' && p.solvedCount > 0).length,
+    hard: problems.filter(p => p.difficulty === 'Hard' && p.solvedCount > 0).length,
+    solved: problems.filter(p => p.solvedCount > 0).length
+  };
+
+  const handleClearData = () => {
+    clearStoredSubmissions();
+    setRecentSubmissions([]);
+    setProblems(problems.map(problem => ({
+      ...problem,
+      solvedCount: 0,
+      lastSolved: null,
+    })));
+  };
+
+  return (
+    <main className="bg-gradient-to-b from-white to-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="gradient-header text-white py-10 px-6 shadow-lg relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/30">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                  </svg>
+                  LeetCode Tracker
+                </h1>
+                <p className="text-white/70 mt-1 text-sm">Tracking progress for <span className="text-white font-medium">@{LEETCODE_USERNAME}</span></p>
+                <div className="mt-2 flex items-center">
+                  <span className="text-white/70 text-xs mr-4">
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Updating...</span>
+                      </div>
+                    ) : lastUpdated ? (
+                      <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+                    ) : null}
+                  </span>
+                  <button
+                    onClick={handleClearData}
+                    className="px-3 py-1 text-xs bg-white/20 text-white rounded hover:bg-white/30 transition-colors duration-150 flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    Reset Data
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="bg-green-50/30 backdrop-blur-sm rounded-lg px-4 py-2 flex flex-col items-center border border-green-100/30">
+                  <span className="text-xl font-semibold text-white">{stats.easy}</span>
+                  <span className="text-xs text-white/70 font-medium">EASY</span>
+                </div>
+                <div className="bg-yellow-50/30 backdrop-blur-sm rounded-lg px-4 py-2 flex flex-col items-center border border-yellow-100/30">
+                  <span className="text-xl font-semibold text-white">{stats.medium}</span>
+                  <span className="text-xs text-white/70 font-medium">MEDIUM</span>
+                </div>
+                <div className="bg-red-50/30 backdrop-blur-sm rounded-lg px-4 py-2 flex flex-col items-center border border-red-100/30">
+                  <span className="text-xl font-semibold text-white">{stats.hard}</span>
+                  <span className="text-xs text-white/70 font-medium">HARD</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tab Bar */}
+            <div className="flex space-x-1 mt-6 bg-white/10 backdrop-blur-sm p-1 rounded-lg w-fit">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === tab
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {isLoading && problems.length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <ProblemList problems={filteredProblems} />
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
