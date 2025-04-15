@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LeetCodeProblem, RecentSubmission } from './types';
 import ProblemList from './components/ProblemList';
-import { fetchRecentSubmissions, fetchProblems, storeSubmissions, loadStoredSubmissions, clearStoredSubmissions } from './utils/api';
+import { fetchRecentSubmissions, fetchProblems, storeSubmissions, loadStoredSubmissions } from './utils/api';
 
 const REFRESH_INTERVAL = 30000; // Refresh every 30 seconds
 
@@ -101,16 +101,6 @@ export default function Home() {
     solved: problems.filter(p => p.solvedCount > 0).length
   };
 
-  const handleClearData = () => {
-    clearStoredSubmissions();
-    setRecentSubmissions([]);
-    setProblems(problems.map(problem => ({
-      ...problem,
-      solvedCount: 0,
-      lastSolved: null,
-    })));
-  };
-
   return (
     <main className="bg-gradient-to-b from-white to-gray-50 min-h-screen">
       {/* Header */}
@@ -129,7 +119,7 @@ export default function Home() {
                 </h1>
                 <p className="text-white/70 mt-1 text-sm">Tracking progress for <span className="text-white font-medium">@gaurxvreddy</span></p>
                 <div className="mt-2 flex items-center">
-                  <span className="text-white/70 text-xs mr-4">
+                  <span className="text-white/70 text-xs">
                     {isLoading ? (
                       <div className="flex items-center">
                         <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -142,15 +132,6 @@ export default function Home() {
                       <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
                     ) : null}
                   </span>
-                  <button
-                    onClick={handleClearData}
-                    className="px-3 py-1 text-xs bg-white/20 text-white rounded hover:bg-white/30 transition-colors duration-150 flex items-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    Reset Data
-                  </button>
                 </div>
               </div>
               

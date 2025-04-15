@@ -1,6 +1,9 @@
 import { LeetCodeProblem, RecentSubmission } from '../types';
 import { parse } from 'csv-parse/sync';
 
+// Store the tracking start time when the app first loads
+const TRACKING_START_TIME = new Date().getTime();
+
 // Function to get CSRF token from cookies - keeping for potential future use
 // function getCSRFToken(): string {
 //   const cookies = document.cookie.split(';');
@@ -50,16 +53,13 @@ export async function fetchRecentSubmissions(): Promise<RecentSubmission[]> {
       return [];
     }
 
-    const lastCleared = sessionStorage.getItem('leetcode_last_cleared');
-    const clearedTime = lastCleared ? new Date(lastCleared).getTime() : 0;
-
     const submissions = data.data.recentAcSubmissionList
       .map((sub: Record<string, string | number>) => ({
         title: sub.title,
         link: `https://leetcode.com/problems/${sub.titleSlug}/`,
         timestamp: new Date(parseInt(String(sub.timestamp)) * 1000),
       }))
-      .filter((sub: RecentSubmission) => sub.timestamp.getTime() > clearedTime);
+      .filter((sub: RecentSubmission) => sub.timestamp.getTime() >= TRACKING_START_TIME);
 
     return submissions;
   } catch (error) {
@@ -70,16 +70,13 @@ export async function fetchRecentSubmissions(): Promise<RecentSubmission[]> {
 
 // Function to store submission data in sessionStorage
 export function storeSubmissions(submissions: RecentSubmission[]): void {
-  sessionStorage.setItem('leetcode_submissions', JSON.stringify(submissions));
+  const existingSubmissions = loadStoredSubmissions();
+  const allSubmissions = [...existingSubmissions, ...submissions];
+  sessionStorage.setItem('leetcode_submissions', JSON.stringify(allSubmissions));
 }
 
 // Function to load stored submissions
 export function loadStoredSubmissions(): RecentSubmission[] {
   const stored = sessionStorage.getItem('leetcode_submissions');
   return stored ? JSON.parse(stored) : [];
-}
-
-export function clearStoredSubmissions() {
-  sessionStorage.setItem('leetcode_last_cleared', new Date().toISOString());
-  sessionStorage.removeItem('leetcode_submissions');
 } 
