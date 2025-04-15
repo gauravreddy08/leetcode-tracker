@@ -5,7 +5,6 @@ import { LeetCodeProblem, RecentSubmission } from './types';
 import ProblemList from './components/ProblemList';
 import { fetchRecentSubmissions, fetchProblems, storeSubmissions, loadStoredSubmissions, clearStoredSubmissions } from './utils/api';
 
-const LEETCODE_USERNAME = 'gaurxvreddy'; // Your LeetCode username
 const REFRESH_INTERVAL = 30000; // Refresh every 30 seconds
 
 const tabs = ['All', 'Easy', 'Medium', 'Hard'];
@@ -46,7 +45,7 @@ export default function Home() {
       try {
         setIsLoading(true);
         console.log('Fetching new submissions...');
-        const submissions = await fetchRecentSubmissions(LEETCODE_USERNAME);
+        const submissions = await fetchRecentSubmissions();
         console.log('New submissions fetched:', submissions.length);
         setRecentSubmissions(submissions);
         storeSubmissions(submissions);
@@ -128,7 +127,7 @@ export default function Home() {
                   </svg>
                   LeetCode Tracker
                 </h1>
-                <p className="text-white/70 mt-1 text-sm">Tracking progress for <span className="text-white font-medium">@{LEETCODE_USERNAME}</span></p>
+                <p className="text-white/70 mt-1 text-sm">Tracking progress for <span className="text-white font-medium">@gaurxvreddy</span></p>
                 <div className="mt-2 flex items-center">
                   <span className="text-white/70 text-xs mr-4">
                     {isLoading ? (
